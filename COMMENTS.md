@@ -12,6 +12,7 @@ Optei por uma arquitetura mais limpa para:
 - Separar as preocupações 
 - Facilitar a manutenção e testabilidade do código
 - Permitir a evolução independente de diferentes camadas do sistema
+- Injeção de dependências para facilitar a troca de implementações
 
 ### 2. Redis para Resultados Parciais
 
@@ -19,6 +20,7 @@ Escolhi o Redis como banco de dados em memória para:
 - Armazenar e recuperar rapidamente os resultados parciais das votações
 - Lidar com alta concorrência de leitura/escrita
 - Permitir operações atômicas de incremento, crucial para a contagem de votos
+- Utilização de Pipeline para melhorar a performance
 
 ### 3. Banco de Dados Relacional (PostgreSQL)
 
@@ -42,7 +44,8 @@ A arquitetura de microsserviços foi adotada para:
 - Melhorar a resiliência geral do sistema
 
 - Gostaria de ter feito um consumer para consumir os dados da fila e salvar no banco de dados, mas não consegui implementar a tempo.
-- Também implementar um serviço para realizar um SYNC entre os dados (Redis/Postgres) e para separar o write do read, para não sobrecarregar o banco de dados.
+- Também implementar um serviço para realizar um SYNC entre os dados (Redis/Postgres) e para separar o write do read, para não sobrecarregar a aplicação, gerar reports e monitorar a consistência dos dados.
+- Implementar um cache para os resultados parciais, para melhorar a performance.
 
 ## Fluxo de Dados
 
@@ -60,5 +63,12 @@ A arquitetura de microsserviços foi adotada para:
 ## Próximos Passos
 
 - Implementar um sistema de monitoramento e alertas
-- Adicionar mais testes, tanto unitários, quanto integração, mutantes, etc.
-- Considerar a implementação de um cache distribuído para melhorar ainda mais o desempenho
+- Monitoramento de logs e métricar, Jaeger para tracing, Grafana para dashboards e Prometheus para as métricas. 
+- Load Balancer/CDN para melhorar a performance e escalabilidade
+- Configurar o Gateway para aplicar rate limit, aplicar estratégia para detectar e bloquear bots e DDOS.
+
+
+## Considerações
+
+- Considerei um monolito, porém escolhi a arquitetura de microsserviços para melhorar a escalabilidade e resiliência do sistema e dos dados.
+- Alternativas cogitadas foram Event-Driven com CQRS, Serverless e Sharding
