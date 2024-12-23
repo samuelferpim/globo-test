@@ -35,3 +35,6 @@ load-test:
 
 load-test-fast:
 	$(K6) run --out json=tests/k6/results/results.json tests/k6/script-fast.js
+
+swagger: 
+	swag init -g cmd/main.go
