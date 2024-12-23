@@ -16,6 +16,12 @@ func SetupRoutes(r *gin.Engine, service ports.VoteService) {
 	r.GET("/total-votes", voteHandler.GetTotalVotes)
 	r.GET("/votes-by-hour", voteHandler.GetVotesByHour)
 
+	r.Static("/static", "../web/static")
+
+	r.GET("/", func(c *gin.Context) {
+		c.File("../web/templates/index.html")
+	})
+
 	r.GET("/health", func(ctx *gin.Context) {
 		ctx.JSON(200, gin.H{
 			"status": "OK",
