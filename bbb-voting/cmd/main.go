@@ -96,7 +96,7 @@ func buildContainer() *dig.Container {
 	})
 
 	// Provide Gin engine
-	c.Provide(func() *gin.Engine {
+	c.Provide(func(logger *zap.Logger) *gin.Engine {
 		gin.SetMode(gin.ReleaseMode)
 		r := gin.New()
 		r.Use(gin.Recovery(), gin.Logger())
@@ -106,15 +106,17 @@ func buildContainer() *dig.Container {
 	// Provide HTTP server
 	c.Provide(func(cfg *config.Config, r *gin.Engine) *http.Server {
 		return &http.Server{
-			Addr:    ":" + cfg.ServerPort,
-			Handler: r,
+			Addr:         ":" + cfg.ServerPort,
+			Handler:      r,
+			ReadTimeout:  15 * time.Second,
+			WriteTimeout: 15 * time.Second,
+			IdleTimeout:  60 * time.Second,
 		}
 	})
 
 	// Setup routes
-	c.Invoke(func(r *gin.Engine, vs ports.VoteService) {
-		httpdelivery.SetupRoutes(r, vs)
+	c.Invoke(func(r *gin.Engine, vs ports.VoteService, logger *zap.Logger) {
+		httpdelivery.SetupRoutes(r, vs, logger)
 	})
-
 	return c
 }

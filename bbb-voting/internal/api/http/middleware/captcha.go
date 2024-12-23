@@ -4,16 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"log"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
-func CaptchaMiddleware() gin.HandlerFunc {
+func CaptchaMiddleware(logger *zap.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		bodyBytes, err := io.ReadAll(c.Request.Body)
 		if err != nil {
-			log.Printf("Error reading body: %v", err)
+			logger.Error("Error reading body", zap.Error(err))
 			c.JSON(400, gin.H{"error": "Unable to read request body"})
 			c.Abort()
 			return
@@ -26,13 +26,14 @@ func CaptchaMiddleware() gin.HandlerFunc {
 		}
 
 		if err := json.Unmarshal(bodyBytes, &body); err != nil {
-			log.Printf("Error unmarshalling JSON: %v", err)
+			logger.Error("Error unmarshalling JSON", zap.Error(err))
 			c.JSON(400, gin.H{"error": "Invalid JSON"})
 			c.Abort()
 			return
 		}
 
 		if !body.CaptchaCompleted {
+			logger.Warn("CAPTCHA not completed")
 			c.JSON(401, gin.H{"error": "CAPTCHA not completed"})
 			c.Abort()
 			return
