@@ -15,15 +15,20 @@ import (
 	"github.com/google/uuid"
 )
 
+type VoteServiceOptions struct {
+	Repo  ports.VoteRepository
+	Queue ports.QueueService
+}
+
 type voteService struct {
 	repo  ports.VoteRepository
 	queue ports.QueueService
 }
 
-func NewVoteService(repo ports.VoteRepository, queue ports.QueueService) ports.VoteService {
+func NewVoteService(opts VoteServiceOptions) ports.VoteService {
 	return &voteService{
-		repo:  repo,
-		queue: queue,
+		repo:  opts.Repo,
+		queue: opts.Queue,
 	}
 }
 

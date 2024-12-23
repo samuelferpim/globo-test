@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -9,72 +10,111 @@ import (
 	"time"
 
 	"bbb-voting/config"
-	"bbb-voting/infra/database"
-	"bbb-voting/infra/queue"
+
 	httpdelivery "bbb-voting/internal/api/http"
+	"bbb-voting/internal/core/ports"
+	serviceRepo "bbb-voting/internal/core/repository"
 	"bbb-voting/internal/core/service"
+	"bbb-voting/internal/infra/queue"
+	"bbb-voting/internal/infra/redis"
 	"bbb-voting/internal/repository"
-	"bbb-voting/pkg/logger"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/dig"
 	"go.uber.org/zap"
 )
 
 func main() {
-	logger.Init()
-	defer logger.GetLogger().Sync()
-	l := logger.GetLogger()
+	c := buildContainer()
 
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		l.Fatal("Failed to load configuration", zap.Error(err))
-	}
+	err := c.Invoke(func(srv *http.Server, l *zap.Logger) {
+		go func() {
+			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				l.Fatal("Failed to start server", zap.Error(err))
+			}
+		}()
 
-	redisDB, err := database.NewRedisDB(cfg.RedisURL)
-	if err != nil {
-		l.Fatal("Failed to connect to Redis", zap.Error(err))
-	}
-	defer redisDB.Close()
+		l.Info("Server started", zap.String("addr", srv.Addr))
 
-	rabbitMQ, err := queue.NewRabbitMQ(cfg.RabbitMQURL)
-	if err != nil {
-		l.Fatal("Failed to connect to RabbitMQ", zap.Error(err))
-	}
-	defer rabbitMQ.Close()
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+		<-quit
+		l.Info("Shutting down server...")
 
-	voteRepo := repository.NewVoteRepository(redisDB)
-	voteService := service.NewVoteService(voteRepo, rabbitMQ)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
-	gin.SetMode(gin.ReleaseMode)
-	r := gin.New()
-	r.Use(gin.Recovery(), gin.Logger())
-
-	httpdelivery.SetupRoutes(r, voteService)
-
-	srv := &http.Server{
-		Addr:    ":" + cfg.ServerPort,
-		Handler: r,
-	}
-
-	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			l.Fatal("Failed to start server", zap.Error(err))
+		if err := srv.Shutdown(ctx); err != nil {
+			l.Fatal("Server forced to shutdown", zap.Error(err))
 		}
-	}()
 
-	l.Info("Server started", zap.String("port", cfg.ServerPort))
+		l.Info("Server exiting")
+	})
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	l.Info("Shutting down server...")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := srv.Shutdown(ctx); err != nil {
-		l.Fatal("Server forced to shutdown", zap.Error(err))
+	if err != nil {
+		log.Fatal(err)
 	}
+}
 
-	l.Info("Server exiting")
+func buildContainer() *dig.Container {
+	c := dig.New()
+
+	// Provide logger
+	c.Provide(func() (*zap.Logger, error) {
+		return zap.NewProduction()
+	})
+
+	// Provide configuration
+	c.Provide(config.LoadConfig)
+
+	// Provide Redis client
+	c.Provide(func(cfg *config.Config, logger *zap.Logger) (repository.RedisClient, error) {
+		return redis.NewRedisClient(cfg.RedisURL, logger)
+	})
+
+	// Provide AMQP connection
+	c.Provide(func(cfg *config.Config) (ports.AMQPConnection, error) {
+		return queue.NewRabbitMQConnection(cfg.RabbitMQURL)
+	})
+
+	// Provide RabbitMQ service
+	c.Provide(func(conn ports.AMQPConnection) ports.QueueService {
+		return queue.NewRabbitMQ(conn)
+	})
+
+	// Provide VoteRepository
+	c.Provide(func(redisClient repository.RedisClient) ports.VoteRepository {
+		return serviceRepo.NewVoteRepository(redisClient)
+	})
+
+	// Provide VoteService
+	c.Provide(func(repo ports.VoteRepository, queue ports.QueueService) ports.VoteService {
+		return service.NewVoteService(service.VoteServiceOptions{
+			Repo:  repo,
+			Queue: queue,
+		})
+	})
+
+	// Provide Gin engine
+	c.Provide(func() *gin.Engine {
+		gin.SetMode(gin.ReleaseMode)
+		r := gin.New()
+		r.Use(gin.Recovery(), gin.Logger())
+		return r
+	})
+
+	// Provide HTTP server
+	c.Provide(func(cfg *config.Config, r *gin.Engine) *http.Server {
+		return &http.Server{
+			Addr:    ":" + cfg.ServerPort,
+			Handler: r,
+		}
+	})
+
+	// Setup routes
+	c.Invoke(func(r *gin.Engine, vs ports.VoteService) {
+		httpdelivery.SetupRoutes(r, vs)
+	})
+
+	return c
 }

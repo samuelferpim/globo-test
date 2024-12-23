@@ -3,17 +3,19 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"bbb-voting/internal/core/domain"
 	"bbb-voting/internal/core/ports"
+	"bbb-voting/internal/repository"
 )
 
 type voteRepository struct {
-	redis ports.RedisRepository
+	redis repository.RedisClient
 }
 
-func NewVoteRepository(redis ports.RedisRepository) ports.VoteRepository {
+func NewVoteRepository(redis repository.RedisClient) ports.VoteRepository {
 	return &voteRepository{
 		redis: redis,
 	}
@@ -22,7 +24,6 @@ func NewVoteRepository(redis ports.RedisRepository) ports.VoteRepository {
 func (r *voteRepository) StoreInRedis(ctx context.Context, vote *domain.VoteRedis) error {
 	pipe := r.redis.Pipeline()
 
-	// Store individual vote
 	voteKey := fmt.Sprintf("vote:%s", vote.ID)
 	pipe.HMSet(ctx, voteKey, map[string]interface{}{
 		"id":             vote.ID,
@@ -30,14 +31,11 @@ func (r *voteRepository) StoreInRedis(ctx context.Context, vote *domain.VoteRedi
 		"timestamp":      vote.Timestamp.Unix(),
 	})
 
-	// Increment vote count for participant
 	participantCountKey := fmt.Sprintf("count:participant:%s", vote.ParticipantID)
 	pipe.Incr(ctx, participantCountKey)
 
-	// Increment total vote count
 	pipe.Incr(ctx, "count:total")
 
-	// Increment vote count for the current hour
 	hourKey := fmt.Sprintf("count:hour:%s", vote.Timestamp.Format("2006010215"))
 	pipe.Incr(ctx, hourKey)
 
@@ -49,22 +47,25 @@ func (r *voteRepository) GetResultsByParticipant(ctx context.Context) (map[strin
 	results := make(map[string]int)
 
 	for {
-		scanCmd := r.redis.Scan(ctx, cursor, "count:participant:*", 10)
-		keys, cursor, err := scanCmd.Result()
+		keys, nextCursor, err := r.redis.Scan(ctx, cursor, "count:participant:*", 10).Result()
 		if err != nil {
 			return nil, err
 		}
 
 		for _, key := range keys {
 			participantID := strings.TrimPrefix(key, "count:participant:")
-			countCmd := r.redis.Get(ctx, key)
-			count, err := countCmd.Int()
+			countStr, err := r.redis.Get(ctx, key).Result()
+			if err != nil {
+				return nil, err
+			}
+			count, err := strconv.Atoi(countStr)
 			if err != nil {
 				return nil, err
 			}
 			results[participantID] = count
 		}
 
+		cursor = nextCursor
 		if cursor == 0 {
 			break
 		}
@@ -74,8 +75,11 @@ func (r *voteRepository) GetResultsByParticipant(ctx context.Context) (map[strin
 }
 
 func (r *voteRepository) GetTotalVotes(ctx context.Context) (int, error) {
-	cmd := r.redis.Get(ctx, "count:total")
-	return cmd.Int()
+	countStr, err := r.redis.Get(ctx, "count:total").Result()
+	if err != nil {
+		return 0, err
+	}
+	return strconv.Atoi(countStr)
 }
 
 func (r *voteRepository) GetVotesByHour(ctx context.Context) (map[string]int, error) {
@@ -83,22 +87,25 @@ func (r *voteRepository) GetVotesByHour(ctx context.Context) (map[string]int, er
 	results := make(map[string]int)
 
 	for {
-		scanCmd := r.redis.Scan(ctx, cursor, "count:hour:*", 10)
-		keys, cursor, err := scanCmd.Result()
+		keys, nextCursor, err := r.redis.Scan(ctx, cursor, "count:hour:*", 10).Result()
 		if err != nil {
 			return nil, err
 		}
 
 		for _, key := range keys {
 			hour := strings.TrimPrefix(key, "count:hour:")
-			countCmd := r.redis.Get(ctx, key)
-			count, err := countCmd.Int()
+			countStr, err := r.redis.Get(ctx, key).Result()
+			if err != nil {
+				return nil, err
+			}
+			count, err := strconv.Atoi(countStr)
 			if err != nil {
 				return nil, err
 			}
 			results[hour] = count
 		}
 
+		cursor = nextCursor
 		if cursor == 0 {
 			break
 		}

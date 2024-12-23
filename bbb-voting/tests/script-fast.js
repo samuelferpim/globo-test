@@ -1,4 +1,5 @@
 import http from 'k6/http';
+import { htmlReport } from "https://raw.githubusercontent.com/benc-uk/k6-reporter/2.4.0/dist/bundle.js";
 import { check, sleep } from 'k6';
 
 export const options = {
@@ -90,4 +91,10 @@ export function afternoonScenario() {
 export function eveningScenario() {
     castVote();
     sleep(0.01);
+}
+
+export function handleSummary(data) {
+    return {
+        "summary.html": htmlReport(data),
+    };
 }

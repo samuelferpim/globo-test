@@ -8,6 +8,7 @@ require (
 	github.com/google/uuid v1.4.0
 	github.com/spf13/viper v1.19.0
 	github.com/streadway/amqp v1.1.0
+	go.uber.org/dig v1.18.0
 	go.uber.org/zap v1.21.0
 )
 

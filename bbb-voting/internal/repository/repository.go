@@ -1,4 +1,4 @@
-package ports
+package repository
 
 import (
 	"context"
@@ -12,7 +12,7 @@ type RedisPipeliner interface {
 	Incr(ctx context.Context, key string)
 }
 
-type RedisRepository interface {
+type RedisClient interface {
 	Pipeline() RedisPipeliner
 	Get(ctx context.Context, key string) *redis.StringCmd
 	HGetAll(ctx context.Context, key string) *redis.StringStringMapCmd

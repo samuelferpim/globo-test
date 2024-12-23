@@ -14,15 +14,19 @@ const (
 )
 
 type RabbitMQ struct {
-	conn *amqp.Connection
+	conn ports.AMQPConnection
 }
 
-func NewRabbitMQ(url string) (ports.QueueService, error) {
+func NewRabbitMQ(conn ports.AMQPConnection) ports.QueueService {
+	return &RabbitMQ{conn: conn}
+}
+
+func NewRabbitMQConnection(url string) (ports.AMQPConnection, error) {
 	conn, err := amqp.Dial(url)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to RabbitMQ: %w", err)
 	}
-	return &RabbitMQ{conn: conn}, nil
+	return &amqpConnectionWrapper{conn}, nil
 }
 
 func (r *RabbitMQ) Publish(ctx context.Context, topic string, message []byte) error {
@@ -59,13 +63,11 @@ func (r *RabbitMQ) publishToQueue(ctx context.Context, message []byte, isError b
 	}
 	defer ch.Close()
 
-	// Use a channel to signal when the publish is done
-	done := make(chan error, 1)
-
+	done := make(chan error)
 	go func() {
 		err := ch.Publish(
-			"",         // exchange (use default exchange)
-			VotesQueue, // routing key (queue name for default exchange)
+			"",         // exchange
+			VotesQueue, // routing key
 			false,      // mandatory
 			false,      // immediate
 			amqp.Publishing{
@@ -74,21 +76,39 @@ func (r *RabbitMQ) publishToQueue(ctx context.Context, message []byte, isError b
 				Headers: amqp.Table{
 					"is_error": isError,
 				},
-			})
+			},
+		)
 		done <- err
 	}()
 
 	select {
-	case err := <-done:
-		if err != nil {
-			return fmt.Errorf("failed to publish message: %w", err)
-		}
-		return nil
 	case <-ctx.Done():
-		return fmt.Errorf("publish operation cancelled: %w", ctx.Err())
+		return ctx.Err()
+	case err := <-done:
+		return err
 	}
 }
 
 func (r *RabbitMQ) Close() error {
 	return r.conn.Close()
+}
+
+type amqpConnectionWrapper struct {
+	*amqp.Connection
+}
+
+func (w *amqpConnectionWrapper) Channel() (ports.AMQPChannel, error) {
+	ch, err := w.Connection.Channel()
+	if err != nil {
+		return nil, err
+	}
+	return &amqpChannelWrapper{ch}, nil
+}
+
+type amqpChannelWrapper struct {
+	*amqp.Channel
+}
+
+func (w *amqpChannelWrapper) Publish(exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error {
+	return w.Channel.Publish(exchange, key, mandatory, immediate, msg)
 }
