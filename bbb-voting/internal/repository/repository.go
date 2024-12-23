@@ -10,6 +10,7 @@ type RedisPipeliner interface {
 	Exec(ctx context.Context) error
 	HMSet(ctx context.Context, key string, fields map[string]interface{})
 	Incr(ctx context.Context, key string)
+	HIncrBy(ctx context.Context, key, field string, incr int64) *redis.IntCmd
 }
 
 type RedisClient interface {

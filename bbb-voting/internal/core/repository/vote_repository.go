@@ -36,8 +36,8 @@ func (r *voteRepository) StoreInRedis(ctx context.Context, vote *domain.VoteRedi
 
 	pipe.Incr(ctx, "count:total")
 
-	hourKey := fmt.Sprintf("count:hour:%s", vote.Timestamp.Format("2006010215"))
-	pipe.Incr(ctx, hourKey)
+	hourKey := vote.Timestamp.Format("2006010215")
+	pipe.HIncrBy(ctx, "votes:by:hour", hourKey, 1)
 
 	return pipe.Exec(ctx)
 }
@@ -83,33 +83,19 @@ func (r *voteRepository) GetTotalVotes(ctx context.Context) (int, error) {
 }
 
 func (r *voteRepository) GetVotesByHour(ctx context.Context) (map[string]int, error) {
-	var cursor uint64
-	results := make(map[string]int)
-
-	for {
-		keys, nextCursor, err := r.redis.Scan(ctx, cursor, "count:hour:*", 10).Result()
-		if err != nil {
-			return nil, err
-		}
-
-		for _, key := range keys {
-			hour := strings.TrimPrefix(key, "count:hour:")
-			countStr, err := r.redis.Get(ctx, key).Result()
-			if err != nil {
-				return nil, err
-			}
-			count, err := strconv.Atoi(countStr)
-			if err != nil {
-				return nil, err
-			}
-			results[hour] = count
-		}
-
-		cursor = nextCursor
-		if cursor == 0 {
-			break
-		}
+	results, err := r.redis.HGetAll(ctx, "votes:by:hour").Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get votes by hour: %w", err)
 	}
 
-	return results, nil
+	votesByHour := make(map[string]int, len(results))
+	for hour, countStr := range results {
+		count, err := strconv.Atoi(countStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert count to int for hour %s: %w", hour, err)
+		}
+		votesByHour[hour] = count
+	}
+
+	return votesByHour, nil
 }

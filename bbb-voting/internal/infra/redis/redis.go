@@ -51,6 +51,10 @@ func (r *RedisClient) Pipeline() repository.RedisPipeliner {
 	return &RedisPipeliner{pipeline: r.client.Pipeline()}
 }
 
+func (p *RedisPipeliner) HIncrBy(ctx context.Context, key, field string, incr int64) *redis.IntCmd {
+	return p.pipeline.HIncrBy(ctx, key, field, incr)
+}
+
 func (r *RedisClient) Get(ctx context.Context, key string) *redis.StringCmd {
 	return r.client.Get(ctx, key)
 }
