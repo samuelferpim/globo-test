@@ -1,0 +1,122 @@
+basePath: /
+definitions:
+  domain.Vote:
+    properties:
+      device_type:
+        type: string
+      id:
+        type: string
+      ip_address:
+        type: string
+      participant_id:
+        type: string
+      region:
+        type: string
+      timestamp:
+        type: string
+      user_agent:
+        type: string
+      voter_id:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: This is a voting API for BBB (Big Brother Brasil)
+  title: BBB Voting API
+  version: "1.0"
+paths:
+  /vote:
+    post:
+      consumes:
+      - application/json
+      description: Cast a vote for a BBB participant
+      parameters:
+      - description: Vote details
+        in: body
+        name: vote
+        required: true
+        schema:
+          $ref: '#/definitions/domain.Vote'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully cast vote
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid input
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to cast vote
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Cast a vote
+      tags:
+      - votes
+  /votes/by-hour:
+    get:
+      description: Get the number of votes cast per hour
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Votes per hour
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to get votes by hour
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get votes by hour
+      tags:
+      - votes
+  /votes/detailed:
+    get:
+      description: Get detailed results of the voting, including votes per participant
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Detailed voting results
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to get detailed results
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get detailed voting results
+      tags:
+      - votes
+  /votes/total:
+    get:
+      description: Get the total number of votes cast
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Total votes
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to get total votes
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get total votes
+      tags:
+      - votes
+schemes:
+- http
+- https
+swagger: "2.0"

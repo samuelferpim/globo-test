@@ -21,8 +21,19 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/dig"
+
+	_ "bbb-voting/docs"
+
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+// @title BBB Voting API
+// @version 1.0
+// @description This is a voting API for BBB (Big Brother Brasil)
+// @host localhost:8080
+// @BasePath /
+// @schemes http https
 func main() {
 	c := buildContainer()
 
@@ -111,6 +122,8 @@ func buildContainer() *dig.Container {
 	// Setup routes
 	c.Invoke(func(r *gin.Engine, vs ports.VoteService) {
 		httpdelivery.SetupRoutes(r, vs)
+		// Add Swagger route
+		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	})
 
 	return c
