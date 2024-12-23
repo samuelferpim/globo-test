@@ -1,0 +1,119 @@
+{
+	"info": {
+		"_postman_id": "04161119-d550-497a-a73d-9194978cb3a6",
+		"name": "bbb-voting",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "34744330"
+	},
+	"item": [
+		{
+			"name": "health",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/health",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"health"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "vote",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"id\": \"teste\",\n    \"participant_id\": \"3\",\n    \"voter_id\": \"voter456\",\n    \"timestamp\": \"2023-12-20T15:04:05Z\",\n    \"ip_address\": \"192.168.1.1\",\n    \"user_agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36\",\n    \"region\": \"BR-SP\",\n    \"device_type\": \"desktop\",\n    \"captcha_completed\": true\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8080/vote",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"vote"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "result",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/result",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"result"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "total-votes",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/total-votes",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"total-votes"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "votes-by-hour",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/votes-by-hour",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"votes-by-hour"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
