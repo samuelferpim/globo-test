@@ -95,6 +95,6 @@ export function eveningScenario() {
 
 export function handleSummary(data) {
     return {
-        "summary.html": htmlReport(data),
+        "tests/k6/results/summary.html": htmlReport(data),
     };
 }

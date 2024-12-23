@@ -31,7 +31,7 @@ shell-db:
 	$(DOCKER_COMPOSE) exec db psql -U user -d bbbvoting
 
 load-test:
-	$(K6) run --out json=results.json tests/script.js && k6 report results.json
+	$(K6) run --out json=tests/k6/results/results.json tests/k6/script.js
 
 load-test-fast:
-	$(K6) run --out json=results.json tests/script-fast.js && k6 report results.json
+	$(K6) run --out json=tests/k6/results/results.json tests/k6/script-fast.js
