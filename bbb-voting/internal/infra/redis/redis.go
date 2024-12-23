@@ -2,12 +2,12 @@ package redis
 
 import (
 	"context"
+	"log"
 	"sync"
 
 	"bbb-voting/internal/repository"
 
 	"github.com/go-redis/redis/v8"
-	"go.uber.org/zap"
 )
 
 var (
@@ -17,19 +17,19 @@ var (
 
 type RedisClient struct {
 	client *redis.Client
-	logger *zap.Logger
 }
 
 type RedisPipeliner struct {
 	pipeline redis.Pipeliner
 }
 
-func NewRedisClient(url string, logger *zap.Logger) (repository.RedisClient, error) {
+func NewRedisClient(url string) (repository.RedisClient, error) {
 	var err error
 	once.Do(func() {
 		opts, parseErr := redis.ParseURL(url)
 		if parseErr != nil {
 			err = parseErr
+			log.Printf("Failed to parse Redis URL: %v", parseErr)
 			return
 		}
 		redisClient = redis.NewClient(opts)
@@ -39,7 +39,6 @@ func NewRedisClient(url string, logger *zap.Logger) (repository.RedisClient, err
 	}
 	return &RedisClient{
 		client: redisClient,
-		logger: logger,
 	}, nil
 }
 

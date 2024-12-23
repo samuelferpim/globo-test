@@ -12,7 +12,6 @@ require (
 	github.com/streadway/amqp v1.1.0
 	go.uber.org/dig v1.18.0
 	go.uber.org/mock v0.5.0
-	go.uber.org/zap v1.21.0
 )
 
 require (

@@ -21,34 +21,33 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/dig"
-	"go.uber.org/zap"
 )
 
 func main() {
 	c := buildContainer()
 
-	err := c.Invoke(func(srv *http.Server, l *zap.Logger) {
+	err := c.Invoke(func(srv *http.Server) {
 		go func() {
 			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				l.Fatal("Failed to start server", zap.Error(err))
+				log.Fatalf("Failed to start server: %v", err)
 			}
 		}()
 
-		l.Info("Server started", zap.String("addr", srv.Addr))
+		log.Println("Server started on", srv.Addr)
 
 		quit := make(chan os.Signal, 1)
 		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 		<-quit
-		l.Info("Shutting down server...")
+		log.Println("Shutting down server...")
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
 		if err := srv.Shutdown(ctx); err != nil {
-			l.Fatal("Server forced to shutdown", zap.Error(err))
+			log.Fatalf("Server forced to shutdown: %v", err)
 		}
 
-		l.Info("Server exiting")
+		log.Println("Server exiting")
 	})
 
 	if err != nil {
@@ -59,17 +58,12 @@ func main() {
 func buildContainer() *dig.Container {
 	c := dig.New()
 
-	// Provide logger
-	c.Provide(func() (*zap.Logger, error) {
-		return zap.NewProduction()
-	})
-
 	// Provide configuration
 	c.Provide(config.LoadConfig)
 
 	// Provide Redis client
-	c.Provide(func(cfg *config.Config, logger *zap.Logger) (repository.RedisClient, error) {
-		return redis.NewRedisClient(cfg.RedisURL, logger)
+	c.Provide(func(cfg *config.Config) (repository.RedisClient, error) {
+		return redis.NewRedisClient(cfg.RedisURL)
 	})
 
 	// Provide AMQP connection
@@ -96,7 +90,7 @@ func buildContainer() *dig.Container {
 	})
 
 	// Provide Gin engine
-	c.Provide(func(logger *zap.Logger) *gin.Engine {
+	c.Provide(func() *gin.Engine {
 		gin.SetMode(gin.ReleaseMode)
 		r := gin.New()
 		r.Use(gin.Recovery(), gin.Logger())
@@ -115,8 +109,9 @@ func buildContainer() *dig.Container {
 	})
 
 	// Setup routes
-	c.Invoke(func(r *gin.Engine, vs ports.VoteService, logger *zap.Logger) {
-		httpdelivery.SetupRoutes(r, vs, logger)
+	c.Invoke(func(r *gin.Engine, vs ports.VoteService) {
+		httpdelivery.SetupRoutes(r, vs)
 	})
+
 	return c
 }
